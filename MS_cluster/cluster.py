@@ -7,38 +7,30 @@ T = Tools_Extend()
 class Read_Point_data:
     # location at HPC: /gpfs/sharedfs1/zhulab/Jiwon/NSF/RF_training/df_training_gpkg_FINAL/
 
-    def __init__(self):
+    def __init__(self,region,time_range):
         self.data_dir = join(data_root,'point')
+        self.region = region
+        self.time_range = time_range
         pass
 
     def run(self):
-        # self.gpkg_to_dataframe()
         self.reproject_gpkg()
-
         pass
 
-    def gpkg_to_dataframe(self):
-        fdir = join(self.data_dir, 'gpkg')
-        for f in T.listdir(fdir):
-            fpath = join(fdir, f)
-            df = gpd.read_file(fpath)
-            T.print_head_n(df)
-            df_group_dict = T.df_groupby(df,'year')
-            for year in df_group_dict.keys():
-                print(f'year: {year}')
-            exit(0)
-        # return df
 
     def reproject_gpkg(self):
-        fpath = join(self.data_dir, 'gpkg/HIS_df_training_final.gpkg')
+        fpath = join(self.data_dir, f'gpkg/{self.region}_df_training_final.gpkg')
         outdir = join(self.data_dir,'dataframe')
         T.mk_dir(outdir,force=True)
-        outf = join(outdir,'HIS.df')
+        outf = join(outdir,f'{self.region}.df')
+        if isfile(outf):
+            print(f"File {outf} already exists. Skipping reprojection.")
+            return
         src_crs = DIC_and_TIF().wkt_84()
-        dst_crs = Read_Landsat().get_projection_wkt()
+        dst_crs = Read_Landsat(self.region,self.time_range).get_projection_wkt()
 
         df = gpd.read_file(fpath)
-        T.print_head_n(df)
+        # T.print_head_n(df)
         new_x_list = []
         new_y_list = []
         for i,row in tqdm(df.iterrows(),total=df.shape[0]):
@@ -56,8 +48,12 @@ class Read_Point_data:
 
 class Read_Landsat:
     # location at HPC: '/gpfs/sharedfs1/zhulab/Falu/LCM_diversity/data/Landsat_composite/'
-    def __init__(self):
-        self.data_dir = join(data_root,'Landsat')
+    def __init__(self,region,time_range):
+        self.data_dir = join(data_root,'landsat')
+        self.region_lower = region.lower()
+        self.region = region
+        # self.time_range = '1980-1989'
+        self.time_range = time_range
         pass
 
     def run(self):
@@ -66,7 +62,7 @@ class Read_Landsat:
         pass
 
     def get_projection_wkt(self):
-        fdir = join(self.data_dir, 'HIS/HIS_median_composite_1980-1989')
+        fdir = join(self.data_dir, f'{self.region_lower}/{self.region}_median_composite_{self.time_range}')
         wkt_list = []
         for f in T.listdir(fdir):
             fpath = join(fdir, f)
@@ -81,16 +77,16 @@ class Read_Landsat:
             raise ValueError("Multiple unique WKT found in the files.")
 
     def extract_point(self):
-        dff = join(Read_Point_data().data_dir,'dataframe/HIS.df')
+        dff = join(Read_Point_data(self.region,self.time_range).data_dir,f'dataframe/{self.region}.df')
         df = T.load_df(dff)
-        fdir = join(self.data_dir,'HIS/HIS_median_composite_1980-1989')
-        outdir = join(self.data_dir,'HIS/extracted_point')
+        fdir = join(self.data_dir,f'{self.region_lower}/{self.region}_median_composite_{self.time_range}')
+        outdir = join(self.data_dir,f'extracted_point/{self.region_lower}')
         T.mk_dir(outdir,force=True)
-        outf = join(outdir,'HIS_median_composite_1980-1989.df')
+        outf = join(outdir,f'{self.region}_median_composite_{self.time_range}.df')
         tile_group_df = T.df_groupby(df,'tilename')
         df_list = []
         for tile in tqdm(tile_group_df):
-            tif_path = join(fdir,f'HIS_median_composite_1980-1989_{tile}.tif')
+            tif_path = join(fdir,f'{self.region}_median_composite_{self.time_range}_{tile}.tif')
             df_i = tile_group_df[tile]
             new_x_list = df_i['new_x'].tolist()
             new_y_list = df_i['new_y'].tolist()
@@ -104,18 +100,68 @@ class Read_Landsat:
 
 
 class Cluster_Analysis:
-    def __init__(self):
-        self.data_dir = join(data_root,'cluster')
+    def __init__(self,region,time_range):
+        self.data_dir = join(data_root,'landsat/extracted_point')
+        self.region = region
+        self.region_lower = region.lower()
+        self.time_range = time_range
 
         pass
 
     def run(self):
 
+        self.PCA_analysis()
+
+    def PCA_analysis(self):
+        from sklearn.decomposition import PCA
+        import matplotlib.pyplot as plt
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+        fdir = join(self.data_dir,f'{self.region_lower}')
+        dff = join(fdir,f'{self.region}_median_composite_{self.time_range}.df')
+        df = T.load_df(dff)
+        T.print_head_n(df)
+        LC = T.get_df_unique_val_list(df,'landcover_des')
+        value_list = df['value'].tolist()
+        X = np.array(value_list)
+        print(value_list.shape)
+
+        X_scaled = scaler.fit_transform(X)
+
+        pca = PCA(n_components=2)
+        X_pca = pca.fit_transform(X_scaled)
+
+        plt.figure()
+        plt.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', s=5, alpha=0.5)
+        plt.xlabel('PC1')
+        plt.ylabel('PC2')
+        plt.title('PCA')
+        plt.show()
+
         pass
 
 def main():
-    # Read_Point_data().run()
-    Read_Landsat().run()
+    region_list = [
+        'HIS',
+        'CUBA',
+        'JAM',
+        'PRI',
+                   ]
+    time_range_list = [
+        '1980-1989',
+        '1990-1999',
+        '2000-2009',
+        '2010-2020',
+    ]
+    #
+    for region in region_list:
+        for time_range in time_range_list:
+            # print(f"Processing region: {region}\n, time range: {time_range}")
+            # Read_Point_data(region,time_range).run()
+            # Read_Landsat(region,time_range).run()
+
+            Cluster_Analysis(region,time_range).run()
+            exit()
     pass
 
 if __name__ == '__main__':
