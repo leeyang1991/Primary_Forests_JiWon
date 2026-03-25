@@ -1,5 +1,14 @@
+import random
+
 import matplotlib.pyplot as plt
+
 from utils import *
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelEncoder
+import umap
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
 this_root = '/home/yangli/mount/ssd4t/Primary_Forests_JiWon'
 data_root = join(this_root, 'data')
 T = Tools_Extend()
@@ -110,34 +119,161 @@ class Cluster_Analysis:
 
     def run(self):
 
-        self.PCA_analysis()
+        # self.PCA_analysis()
+        # self.umap_analysis()
+        # self.LDA_analysis()
+        self.distance_analysis()
+        # self.parallel_coordinates_analysis()
+        # self.Spectrum()
+
+    def data_standardize(self):
+        fdir = join(self.data_dir, f'{self.region_lower}')
+        dff = join(fdir, f'{self.region}_median_composite_{self.time_range}.df')
+        df = T.load_df(dff)
+        # T.print_head_n(df)
+        # exit()
+        LC = T.get_df_unique_val_list(df, 'landcover_des')
+
+        # selected LC: 'Primary dry forest', 'Primary wet forest', 'Secondary dry forest', 'Secondary wet forest'
+        selected_df = df['landcover_des'].isin(
+            ['Primary dry forest', 'Primary wet forest', 'Secondary dry forest', 'Secondary wet forest'])
+        df = df[selected_df]
+
+        spectrual_values = df['value'].tolist()
+        X = np.array(spectrual_values)
+        y = df['landcover_des'].tolist()
+        y = np.array(y)
+
+        le = LabelEncoder()
+        y_encoded = le.fit_transform(y)
+        print(dict(zip(le.classes_, range(len(le.classes_)))))
+        X_scaled = StandardScaler().fit_transform(X)
+        y_class = le.classes_
+        return X_scaled, y_encoded,y_class
+
 
     def PCA_analysis(self):
-        from sklearn.decomposition import PCA
-        import matplotlib.pyplot as plt
-        from sklearn.preprocessing import StandardScaler
-        scaler = StandardScaler()
-        fdir = join(self.data_dir,f'{self.region_lower}')
-        dff = join(fdir,f'{self.region}_median_composite_{self.time_range}.df')
-        df = T.load_df(dff)
-        T.print_head_n(df)
-        LC = T.get_df_unique_val_list(df,'landcover_des')
-        value_list = df['value'].tolist()
-        X = np.array(value_list)
-        print(value_list.shape)
+        X_scaled, y_encoded,y_class = self.data_standardize()
 
-        X_scaled = scaler.fit_transform(X)
 
         pca = PCA(n_components=2)
         X_pca = pca.fit_transform(X_scaled)
 
         plt.figure()
-        plt.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', s=5, alpha=0.5)
+        for i, label in enumerate(y_class):
+            plt.scatter(
+                X_pca[y_encoded == i, 0],
+                X_pca[y_encoded == i, 1],
+                label=label,
+                s=5,
+                alpha=0.5
+            )
+        plt.legend()
         plt.xlabel('PC1')
         plt.ylabel('PC2')
-        plt.title('PCA')
+        plt.title('PCA - 4 classes')
+        plt.show()
+        pass
+
+    def umap_analysis(self):
+        seed = random.seed(42)
+        X_scaled, y_encoded, y_class = self.data_standardize()
+        X_umap = umap.UMAP(n_neighbors=30, min_dist=0.1,random_state=42).fit_transform(X_scaled)
+
+        plt.figure()
+        for i, label in enumerate(y_class):
+            plt.scatter(
+                X_umap[y_encoded == i, 0],
+                X_umap[y_encoded == i, 1],
+                label=label,
+                s=15,
+                alpha=0.3,
+                zorder=-i
+            )
+
+            # plt.legend()
+            plt.title(label)
+            plt.show()
+
+    def LDA_analysis(self):
+        seed = random.seed(42)
+        X_scaled, y_encoded, y_class = self.data_standardize()
+        lda = LinearDiscriminantAnalysis(n_components=2)
+        X_lda = lda.fit_transform(X_scaled, y_encoded)
+
+        plt.figure()
+        for i, label in enumerate(y_class):
+            plt.scatter(
+                X_lda[y_encoded == i, 0],
+                X_lda[y_encoded == i, 1],
+                label=label,
+                s=5,
+                alpha=0.5
+            )
+
+            # plt.legend()
+            plt.xlim(-3,3)
+            plt.ylim(-3,3)
+            plt.title(label)
+            plt.show()
+
+    def distance_analysis(self):
+        from sklearn.metrics import pairwise_distances
+        X_scaled, y_encoded, y_class = self.data_standardize()
+        intra = []
+        for i in range(4):
+            intra_i = pairwise_distances(X_scaled[y_encoded == i])
+            print(intra_i.shape)
+            plt.imshow(intra_i, cmap='jet')
+            plt.title(y_class[i])
+            plt.colorbar()
+            plt.show()
+
+            exit()
+            # intra.append(intra_i.mean())
+
+        inter_0_1 = pairwise_distances(
+            X_scaled[y_encoded == 0],
+            X_scaled[y_encoded == 1]
+        ).mean()
+        inter_0_2 = pairwise_distances(
+            X_scaled[y_encoded == 0],
+            X_scaled[y_encoded == 2]
+        )
+        print(inter_0_2.shape)
+        plt.imshow(inter_0_2,aspect='auto',cmap='gray')
+        plt.colorbar()
+        plt.show()
+        exit()
+
+        intra = [float(i) for i in intra]
+        print("intra:", intra)
+        print("inter:", inter_0_2)
+
+        pass
+
+    def parallel_coordinates_analysis(self):
+        import pandas as pd
+        from pandas.plotting import parallel_coordinates
+        X_scaled, y_encoded, y_class = self.data_standardize()
+        df = pd.DataFrame(X_scaled, columns=[f'B{i}' for i in range(1,8)])
+        df['label'] = y_encoded
+
+        parallel_coordinates(df.sample(1000), 'label', alpha=0.2)
+        plt.title("Parallel coordinates (7D space)")
         plt.show()
 
+        pass
+
+    def Spectrum(self):
+        X_scaled, y_encoded, y_class = self.data_standardize()
+        for i, label in enumerate(y_class):
+            mean_spec = X_scaled[y_encoded == i].mean(axis=0)
+            plt.plot(mean_spec, label=label)
+
+        plt.legend()
+        plt.title("Spectrum")
+        plt.show()
         pass
 
 def main():
