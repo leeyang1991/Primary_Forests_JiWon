@@ -1,6 +1,3 @@
-import random
-
-import matplotlib.pyplot as plt
 
 from utils import *
 from sklearn.decomposition import PCA
@@ -350,9 +347,11 @@ class Cluster_Analysis_all_region:
         # self.merge_df()
 
         # self.Spectrum()
-        # self.PCA_3d_analysis()
+        self.PCA_3d_analysis()
         # self.cal_distance()
-        self.plot_distance_circle()
+        # self.plot_distance_circle()
+        # self.PCA_3d_cluster_shp()
+        # self.PCA_3d_cluster_plot()
         pass
 
     def data_standardize(self,sample_n=None):
@@ -389,10 +388,11 @@ class Cluster_Analysis_all_region:
         print(dict(zip(le.classes_, range(len(le.classes_)))))
         X_scaled = StandardScaler().fit_transform(X)
         y_class = le.classes_
-        return X_scaled, y_encoded,y_class
+        return X_scaled, y_encoded,y_class,df
 
     def PCA_3d_analysis(self):
-        X_scaled, y_encoded,y_class = self.data_standardize(20000)
+        # X_scaled, y_encoded,y_class,df = self.data_standardize(20000)
+        X_scaled, y_encoded,y_class,df = self.data_standardize()
 
         pca = PCA(n_components=3)
         X_pca = pca.fit_transform(X_scaled)
@@ -425,8 +425,7 @@ class Cluster_Analysis_all_region:
 
     def cal_distance(self):
         from sklearn.metrics import pairwise_distances
-        from sklearn.manifold import MDS
-        X_scaled, y_encoded, y_class = self.data_standardize()
+        X_scaled, y_encoded, y_class,df = self.data_standardize()
         intra = []
         for i in range(4):
             intra_i = pairwise_distances(X_scaled[y_encoded == i])
@@ -495,7 +494,7 @@ class Cluster_Analysis_all_region:
     def plot_distance_circle(self):
         from sklearn.manifold import MDS
         result_dict = self.distance_result()
-        X_scaled, y_encoded, y_class = self.data_standardize()
+        X_scaled, y_encoded, y_class,df = self.data_standardize()
         intra = result_dict['intra']
         inter_0_1 = result_dict['inter_0_1']
         inter_0_2 = result_dict['inter_0_2']
@@ -544,7 +543,81 @@ class Cluster_Analysis_all_region:
         plt.show()
 
 
-    def PCA_3d_cluster(self):
+    def PCA_3d_cluster_shp(self):
+        from sklearn.cluster import KMeans
+        outdir = join(data_root,'landsat/cluster_result')
+        T.mk_dir(outdir,force=True)
+        X_scaled, y_encoded, y_class,df = self.data_standardize()
+        pca = PCA(n_components=3)
+        X_pca = pca.fit_transform(X_scaled)
+
+        kmeans = KMeans(n_clusters=2, random_state=42)
+        cluster_labels = kmeans.fit_predict(X_pca)
+        # print(cluster_labels[:100])
+        df['kmeans_cluster'] = cluster_labels
+        original_point_list = []
+        kmeans_cluster_point_list = []
+
+        for i,row in tqdm(df.iterrows(),total=df.shape[0]):
+            latitude = row['latitude']
+            longitude = row['longitude']
+            landcover_des = row['landcover_des']
+            kmeans_cluster = row['kmeans_cluster']
+            original_point = [longitude,latitude,{'class': landcover_des}]
+            kmeans_cluster_point = [longitude,latitude,{'kmeans': kmeans_cluster}]
+            original_point_list.append(original_point)
+            kmeans_cluster_point_list.append(kmeans_cluster_point)
+        outf_original = join(outdir,'original_point.shp')
+        outf_kmeans_cluster = join(outdir,'kmeans_cluster_point.shp')
+        T.point_to_shp(original_point_list,outf_original)
+        T.point_to_shp(kmeans_cluster_point_list,outf_kmeans_cluster)
+        table = pd.crosstab(df['kmeans_cluster'], df['landcover_des'])
+        # T.print_head_n(table)
+        T.df_to_excel(table,join(outdir,'cluster_crosstab.xlsx'))
+
+        pass
+
+    def PCA_3d_cluster_plot(self):
+        from sklearn.cluster import KMeans
+        outdir = join(data_root, 'landsat/cluster_result')
+        T.mk_dir(outdir, force=True)
+        X_scaled, y_encoded, y_class, df = self.data_standardize()
+        # print(y_class)
+        # exit(0)
+        pca = PCA(n_components=3)
+        X_pca = pca.fit_transform(X_scaled)
+
+        kmeans = KMeans(n_clusters=2, random_state=42)
+        cluster_labels = kmeans.fit_predict(X_pca)
+        # print(cluster_labels[:100])
+        df['kmeans_cluster'] = cluster_labels
+
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111, projection='3d')
+        for i, label in enumerate([0,1]):
+            idx = cluster_labels == i
+            # print(cluster_labels[idx])
+            # exit(0)
+            ax.scatter(
+                X_pca[idx, 0],
+                X_pca[idx, 1],
+                X_pca[idx, 2],
+                label=label,
+
+                s=3,
+                alpha=0.3,
+                color=self.kmean_color_dict[label]
+            )
+        plt.legend(title='KMeans Cluster')
+        ax.set_xlabel('PC1')
+        ax.set_ylabel('PC2')
+        ax.set_zlabel('PC3')
+        # ax.set_title(f'PCA with KMeans Clusters - All Region')
+        ax.set_xlim(-3, 6)
+        ax.set_ylim(-3, 3)
+        ax.set_zlim(-2, 2)
+        plt.show()
+
 
         pass
 
@@ -557,10 +630,15 @@ class Cluster_Analysis_all_region:
             'Secondary wet forest': '#d62728'
         }
 
+        self.kmean_color_dict = {
+            0: '#9467bd',
+            1: '#8c564b'
+        }
+
         pass
 
     def Spectrum(self):
-        X_scaled, y_encoded, y_class = self.data_standardize()
+        X_scaled, y_encoded, y_class,df = self.data_standardize()
         for i, label in enumerate(y_class):
             mean_spec = X_scaled[y_encoded == i].mean(axis=0)
             std_spec = X_scaled[y_encoded == i].std(axis=0)
