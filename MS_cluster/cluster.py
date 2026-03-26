@@ -10,8 +10,9 @@ import umap
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from pprint import pprint
 
+
 # this_root = '/home/yangli/mount/ssd4t/Primary_Forests_JiWon'
-this_root = '/Users/liyang/Projects_data/Primary_Forests_JiWon'
+this_root = '/Users/liyang/Projects_data/Primary_Forests_JiWon';import matplotlib;matplotlib.use('TkAgg')
 data_root = join(this_root, 'data')
 T = Tools_Extend()
 
@@ -348,9 +349,8 @@ class Cluster_Analysis_all_region:
     def run(self):
         # self.merge_df()
 
-
-        # self.PCA_3d_analysis()
         # self.Spectrum()
+        # self.PCA_3d_analysis()
         # self.cal_distance()
         self.plot_distance_circle()
         pass
@@ -365,8 +365,10 @@ class Cluster_Analysis_all_region:
         LC = T.get_df_unique_val_list(df, 'landcover_des')
 
         # selected LC: 'Primary dry forest', 'Primary wet forest', 'Secondary dry forest', 'Secondary wet forest'
+        # selected_df = df['landcover_des'].isin(
+        #     ['Primary dry forest', 'Primary wet forest', 'Secondary dry forest', 'Secondary wet forest'])
         selected_df = df['landcover_des'].isin(
-            ['Primary dry forest', 'Primary wet forest', 'Secondary dry forest', 'Secondary wet forest'])
+            ['Primary dry forest', 'Primary wet forest'])
         df = df[selected_df]
         value_list_new = []
         for i,row in df.iterrows():
@@ -404,8 +406,8 @@ class Cluster_Analysis_all_region:
                 X_pca[idx, 1],
                 X_pca[idx, 2],
                 label=label,
-                s=5,
-                alpha=0.6,
+                s=3,
+                alpha=0.3,
                 color=self.color_dict[label]
             )
 
@@ -541,6 +543,10 @@ class Cluster_Analysis_all_region:
         plt.grid(alpha=0.3)
         plt.show()
 
+
+    def PCA_3d_cluster(self):
+
+        pass
 
     def color_scheme(self):
 
