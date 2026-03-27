@@ -346,15 +346,15 @@ class Cluster_Analysis_all_region:
     def run(self):
         # self.merge_df()
 
-        # self.Spectrum()
-        self.PCA_3d_analysis()
+        self.Spectrum()
+        # self.PCA_3d_analysis()
         # self.cal_distance()
         # self.plot_distance_circle()
         # self.PCA_3d_cluster_shp()
         # self.PCA_3d_cluster_plot()
         pass
 
-    def data_standardize(self,sample_n=None):
+    def data_standardize(self,sample_n=20000):
         dff = join(data_root,'landsat/extracted_point/all_region.df')
         df = T.load_df(dff)
         if sample_n is not None:
@@ -386,13 +386,14 @@ class Cluster_Analysis_all_region:
         le = LabelEncoder()
         y_encoded = le.fit_transform(y)
         print(dict(zip(le.classes_, range(len(le.classes_)))))
-        X_scaled = StandardScaler().fit_transform(X)
+        # X_scaled = StandardScaler().fit_transform(X)
+        X_scaled = X
         y_class = le.classes_
         return X_scaled, y_encoded,y_class,df
 
     def PCA_3d_analysis(self):
-        # X_scaled, y_encoded,y_class,df = self.data_standardize(20000)
-        X_scaled, y_encoded,y_class,df = self.data_standardize()
+        X_scaled, y_encoded,y_class,df = self.data_standardize(None)
+        # X_scaled, y_encoded,y_class,df = self.data_standardize()
 
         pca = PCA(n_components=3)
         X_pca = pca.fit_transform(X_scaled)
@@ -415,9 +416,9 @@ class Cluster_Analysis_all_region:
         ax.set_ylabel('PC2')
         ax.set_zlabel('PC3')
         ax.set_title(f'PCA All Region')
-        ax.set_xlim(-3,6)
-        ax.set_ylim(-3,3)
-        ax.set_zlim(-2,2)
+        # ax.set_xlim(-3,6)
+        # ax.set_ylim(-3,3)
+        # ax.set_zlim(-2,2)
 
         ax.legend()
         plt.show()
