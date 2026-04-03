@@ -3,13 +3,14 @@ from utils import *
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelEncoder
-import umap
+# import umap
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from pprint import pprint
 
 
-# this_root = '/home/yangli/mount/ssd4t/Primary_Forests_JiWon'
-this_root = '/Users/liyang/Projects_data/Primary_Forests_JiWon';import matplotlib;matplotlib.use('TkAgg')
+this_root = '/home/yangli/mount/ssd4t/Primary_Forests_JiWon' # dell
+# this_root = '/Users/liyang/Projects_data/Primary_Forests_JiWon' # macmini
+# import matplotlib;matplotlib.use('TkAgg')
 data_root = join(this_root, 'data')
 T = Tools_Extend()
 
@@ -102,6 +103,9 @@ class Read_Landsat:
             row_list, col_list = RasterIO_Func_Extend().cal_row_col_from_coordinates(new_x_list,new_y_list,tif_path)
             value_list = RasterIO_Func_Extend().extract_value_from_tif_by_row_col(row_list,col_list,tif_path)
             df_i['value'] = list(value_list)
+            df_i['landsat_year'] = self.time_range
+            # T.print_head_n(df_i)
+            # exit()
             df_list.append(df_i)
         df_all = pd.concat(df_list,axis=0)
         T.save_df(df_all,outf)
@@ -228,26 +232,26 @@ class Cluster_Analysis_individual_region:
         plt.show()
         pass
 
-    def umap_analysis(self):
-        seed = random.seed(42)
-        X_scaled, y_encoded, y_class = self.data_standardize()
-        X_umap = umap.UMAP(n_neighbors=30, min_dist=0.1,random_state=42).fit_transform(X_scaled)
-
-        plt.figure()
-        for i, label in enumerate(y_class):
-            plt.scatter(
-                X_umap[y_encoded == i, 0],
-                X_umap[y_encoded == i, 1],
-                label=label,
-                s=15,
-                alpha=0.3,
-                zorder=-i,
-                color=self.color_dict[label]
-            )
-
-            # plt.legend()
-            plt.title(f'{label} - UMAP')
-            plt.show()
+    # def umap_analysis(self):
+    #     seed = random.seed(42)
+    #     X_scaled, y_encoded, y_class = self.data_standardize()
+    #     X_umap = umap.UMAP(n_neighbors=30, min_dist=0.1,random_state=42).fit_transform(X_scaled)
+    #
+    #     plt.figure()
+    #     for i, label in enumerate(y_class):
+    #         plt.scatter(
+    #             X_umap[y_encoded == i, 0],
+    #             X_umap[y_encoded == i, 1],
+    #             label=label,
+    #             s=15,
+    #             alpha=0.3,
+    #             zorder=-i,
+    #             color=self.color_dict[label]
+    #         )
+    #
+    #         # plt.legend()
+    #         plt.title(f'{label} - UMAP')
+    #         plt.show()
 
     def LDA_analysis(self):
         seed = random.seed(42)
@@ -343,10 +347,10 @@ class Cluster_Analysis_all_region:
         self.color_scheme()
         pass
 
-    def run(self):
+    def run(self,**kwargs):
         # self.merge_df()
 
-        self.Spectrum()
+        self.Spectrum(**kwargs)
         # self.PCA_3d_analysis()
         # self.cal_distance()
         # self.plot_distance_circle()
@@ -354,7 +358,7 @@ class Cluster_Analysis_all_region:
         # self.PCA_3d_cluster_plot()
         pass
 
-    def data_standardize(self,sample_n=20000):
+    def data_standardize(self,sample_n=20000,landsat_year=None,region=None):
         dff = join(data_root,'landsat/extracted_point/all_region.df')
         df = T.load_df(dff)
         if sample_n is not None:
@@ -377,6 +381,12 @@ class Cluster_Analysis_all_region:
             value_list_new.append(value)
         df['value'] = value_list_new
         df = df.dropna(subset=['value'])
+        if landsat_year is not None:
+            df = df[df['landsat_year'] == landsat_year]
+        if region is not None:
+            df = df[df['region'] == region]
+        # T.print_head_n(df)
+        # exit()
 
         spectrual_values = df['value'].tolist()
         X = np.array(spectrual_values)
@@ -392,7 +402,7 @@ class Cluster_Analysis_all_region:
         return X_scaled, y_encoded,y_class,df
 
     def PCA_3d_analysis(self):
-        X_scaled, y_encoded,y_class,df = self.data_standardize(None)
+        X_scaled, y_encoded,y_class,df = self.data_standardize()
         # X_scaled, y_encoded,y_class,df = self.data_standardize()
 
         pca = PCA(n_components=3)
@@ -638,8 +648,10 @@ class Cluster_Analysis_all_region:
 
         pass
 
-    def Spectrum(self):
-        X_scaled, y_encoded, y_class,df = self.data_standardize()
+    def Spectrum(self,**kwargs):
+        time_range = kwargs['landsat_year']
+        region = kwargs['region']
+        X_scaled, y_encoded, y_class,df = self.data_standardize(**kwargs)
         for i, label in enumerate(y_class):
             mean_spec = X_scaled[y_encoded == i].mean(axis=0)
             std_spec = X_scaled[y_encoded == i].std(axis=0)
@@ -649,7 +661,7 @@ class Cluster_Analysis_all_region:
             plt.ylabel('Mean Spectral Value (Standardized)')
 
         plt.legend()
-        plt.title("Spectrum")
+        plt.title(f'{region}-{time_range}')
         plt.show()
         pass
 
@@ -675,32 +687,34 @@ class Cluster_Analysis_all_region:
 
 
 def main():
-    # region_list = [
-    #     'HIS',
-    #     'CUBA',
-    #     'JAM',
-    #     'PRI',
-    #                ]
-    # time_range_list = [
-    #     '1980-1989',
-    #     '1990-1999',
-    #     '2000-2009',
-    #     '2010-2020',
-    # ]
+    region_list = [
+        'HIS',
+        'CUBA',
+        'JAM',
+        'PRI',
+                   ]
+    time_range_list = [
+        '1980-1989',
+        '1990-1999',
+        '2000-2009',
+        '2010-2020',
+    ]
     #
     # for region in region_list:
     #     for time_range in time_range_list:
-            # if not region == 'JAM':
-            # if not region == 'PRI':
-            #     continue
-            # print(f"region: {region}, {time_range}")
+    #         # if not region == 'JAM':
+    #         # if not region == 'PRI':
+    #         #     continue
+    #         print(f"region: {region}, {time_range}")
+    #
+    #         Read_Point_data(region,time_range).run()
+    #         Read_Landsat(region,time_range).run()
 
-            # Read_Point_data(region,time_range).run()
-            # Read_Landsat(region,time_range).run()
-
-            # Cluster_Analysis_individual_region(region,time_range).run()
-            # exit()
-    Cluster_Analysis_all_region().run()
+    #         # Cluster_Analysis_individual_region(region,time_range).run()
+    #         # exit()
+    for region in region_list:
+            for time_range in time_range_list:
+                Cluster_Analysis_all_region().run(landsat_year=time_range,region=region)
     pass
 
 if __name__ == '__main__':

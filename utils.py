@@ -1,6 +1,6 @@
 from lytools import *
 from pyproj import Transformer
-
+from pprint import pprint
 
 class RasterIO_Func_Extend(RasterIO_Func):
 
@@ -37,8 +37,59 @@ class RasterIO_Func_Extend(RasterIO_Func):
                 value = data[:, row, col]
                 value_list.append(value)
         value_list = np.array(value_list)
-
         return value_list
+
+    def extract_value_from_tif_by_x_y(self,x_list,y_list,fpath):
+        value_list = []
+        with rasterio.open(fpath) as src:
+            profile = src.profile
+            xy_point_list = list(zip(x_list,y_list))
+            for value in src.sample(xy_point_list):
+                value_list.append(value)
+            value_list = np.array(value_list)
+            return value_list
+
+    def get_tif_bounds(self,fpath):
+        originX_list = []
+        originY_list = []
+        endX_list = []
+        endY_list = []
+        crs_list = []
+        with rasterio.open(fpath) as src:
+            profile = src.profile
+            crs = profile['crs']
+            crs_str = crs.to_string()
+            if not crs_str in crs_list:
+                crs_list.append(crs_str)
+            ImageHeight = profile['height']
+            ImageWidth = profile['width']
+            PixelWidth = profile['transform'][0]
+            PixelHeight = profile['transform'][4]
+
+            originX = profile['transform'][2]
+            originY = profile['transform'][5]
+            endX = originX + ImageWidth * PixelWidth
+            endY = originY + ImageHeight * PixelHeight
+
+            originX_list.append(originX)
+            originY_list.append(originY)
+            endX_list.append(endX)
+            endY_list.append(endY)
+        if len(crs_list) != 1:
+            print('Different CRS found:')
+            print(crs_list)
+            raise ValueError('Different CRS found!')
+        # originX_most = min(originX_list)
+        # originY_most = max(originY_list)
+        # endX_most = max(endX_list)
+        # endY_most = min(endY_list)
+
+        ll_point = (originX, originY)
+        lr_point = (endX, originY)
+        ur_point = (endX, endY)
+        ul_point = (originX, endY)
+        return ll_point,lr_point,ur_point,ul_point
+
 
 class Tools_Extend(Tools):
     def __init__(self):
