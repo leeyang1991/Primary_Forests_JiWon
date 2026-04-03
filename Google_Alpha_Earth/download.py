@@ -21,13 +21,14 @@ class Download:
         pass
 
     def run(self):
-        self.download_tiles()
-        # self.check_logs()
+        # self.download_tiles()
+        self.check_logs()
 
 
     def check_logs(self):
         fdir = join(self.data_dir, 'log/download_tiles')
         Check_logs(fdir).read_err_files()
+        Check_logs(fdir).read_out_files()
 
     def download_tiles(self):
         fpath = join(self.data_dir,'shp/alphaearth_shp.shp')

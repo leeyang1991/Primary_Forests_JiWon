@@ -351,9 +351,9 @@ class Cluster_Analysis_all_region:
         # self.merge_df()
 
         # self.Spectrum(**kwargs)
-        # self.PCA_3d_analysis()
-        self.cal_distance()
-        self.plot_distance_circle()
+        self.PCA_3d_analysis()
+        # self.cal_distance()
+        # self.plot_distance_circle()
         # self.PCA_3d_cluster_shp()
         # self.PCA_3d_cluster_plot()
         pass
