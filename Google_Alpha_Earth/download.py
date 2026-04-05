@@ -5,11 +5,10 @@ from pprint import pprint
 import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
-from HPC_func import *
+from lytools_HPC import *
 
 
-
-T = Tools_Extend()
+T = Tools()
 this_root = '/home/ygo26002/Project_data/Primary_Forests_JiWon'
 data_root = join(this_root,'data')
 
@@ -107,6 +106,38 @@ class Download:
         key = '/'.join(url.split('/')[3:])
         s3.download_file(bucket, key, outf)
 
+def remove_bad_files():
+    fdir = join(data_root,'google_alpha_earth/tiles')
+    for year in tqdm(T.listdir(fdir)):
+        year_dir = join(fdir, year)
+        for f in T.listdir(year_dir):
+            fpath = join(year_dir, f)
+            if not f.endswith('.tif'):
+                os.remove(fpath)
+
+def count_f_num():
+    fdir = join(data_root,'google_alpha_earth/tiles')
+    total = 0
+    for year in tqdm(T.listdir(fdir)):
+        year_dir = join(fdir, year)
+        flag = 0
+        for f in T.listdir(year_dir):
+            if not(f.endswith('.tif')):
+                continue
+            flag += 1
+            total += 1
+        print(year, flag)
+    print(total)
+
+@Decorator.shutup_gdal
+def resample_embeddings():
+    fdir = join(data_root,'google_alpha_earth/tiles/2018')
+    outdir = join(data_root,'google_alpha_earth/tiles_resample/2018')
+    T.mkdir(outdir,force=True)
+    for f in tqdm(T.listdir(fdir)):
+        fpath = join(fdir, f)
+        outfile = join(outdir, f)
+        ToRaster().resample_reproj(fpath,outfile,1000)
 def main():
     Download().run()
     pass

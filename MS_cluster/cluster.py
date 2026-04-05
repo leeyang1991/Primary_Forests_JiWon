@@ -12,7 +12,7 @@ this_root = '/home/yangli/mount/ssd4t/Primary_Forests_JiWon' # dell
 # this_root = '/Users/liyang/Projects_data/Primary_Forests_JiWon' # macmini
 # import matplotlib;matplotlib.use('TkAgg')
 data_root = join(this_root, 'data')
-T = Tools_Extend()
+T = Tools()
 
 class Read_Point_data:
     # location at HPC: /gpfs/sharedfs1/zhulab/Jiwon/NSF/RF_training/df_training_gpkg_FINAL/

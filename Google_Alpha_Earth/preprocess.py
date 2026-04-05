@@ -44,10 +44,10 @@ class Point_Dataframe:
 
     def run(self):
         self.merge_df()
-        # self.add_point_tiles()
-        # self.reproject_point()
-        # self.extract_value()
-        # self.check_extract_value()
+        self.add_point_tiles()
+        self.reproject_point()
+        self.extract_value()
+        self.check_extract_value()
         self.normalize_gfe_value()
         pass
 
@@ -283,7 +283,7 @@ class Point_Dataframe:
 
 
 def main():
-    # remove_bad_files()
+    remove_bad_files()
     # count_f_num()
     # resample_embeddings()
     Point_Dataframe().run()
